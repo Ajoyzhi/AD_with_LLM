@@ -46,3 +46,5 @@ CUDA_VISIBLE_DEVICES=1 ./leaderboard/run_leaderboard.sh
 
 #### Acknowledgement
 
+Thanks [carla-simulator](https://github.com/carla-simulator/carla) and [LMDrive](https://github.com/opendilab/LMDrive).
+
