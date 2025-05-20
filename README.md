@@ -2,7 +2,7 @@
 
 Some agents based on LLM are implemented in `leaderboard/team_code`, where CARLA simulator is used.
 
-#### Environment
+#### Environments
 
 Since the project runs in CARLA leaderboard, the CARLA should be installed firstly.
 
@@ -30,18 +30,31 @@ python3 generate_traffic.py
 Then, download the code and install the requirements in the conda environment.
 
 ```python
-git clone 
+git clone git@github.com:Ajoyzhi/AD_with_LLM.git
+cd AD_with_LLM
 cd leaderboard
 pip3 install -r requirements.txt
 cd scenario_runner
 pip3 install -r requirements.txt
+# additional packages
+pip3 install json5
+pip3 install torch
+pip3 install easydict
+pip3 install torchvision
+pip3 install openai
+pip3 install transformers
 ```
 
 #### Run
 
 ```
 cd AD_with_LLM
+# run the examples in carla leaderboard
 CUDA_VISIBLE_DEVICES=1 ./leaderboard/run_leaderboard.sh
+# run the agent based on GPT4
+CUDA_VISIBLE_DEVICES=1 ./leaderboard/run_vision_llm.sh
+# run the agent based on blip2 and GPT4. It translates images to words and the words is taken as the prompt for GPT4 
+CUDA_VISIBLE_DEVICES=1 ./leaderboard/run_vision_text_llm.sh
 ```
 
 #### Acknowledgement
