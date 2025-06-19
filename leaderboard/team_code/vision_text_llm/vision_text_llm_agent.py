@@ -102,7 +102,7 @@ class DisplayInterface(object):
 
 
 def get_entry_point():
-    return "VisionLLMAgent"
+    return "VisionTextLLMAgent"
 
 
 class Resize2FixedSize:
@@ -147,7 +147,7 @@ def create_carla_rgb_transform(
     return transforms.Compose(tfl)
 
 
-class VisionLLMAgent(autonomous_agent.AutonomousAgent):
+class VisionTextLLMAgent(autonomous_agent.AutonomousAgent):
     # setup function will be automatically called each time a route is initialized
     def setup(self, path_to_conf_file):
         self._hic = DisplayInterface()  # set the surface shown for human
