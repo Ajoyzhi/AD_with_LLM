@@ -6,7 +6,7 @@ from langchain_huggingface import HuggingFaceEmbeddings # pip install -qU langch
 from langchain.docstore.document import Document
 
 class DrivingMemory:
-    def __init__(self, emb_type, rule_path=None, emergency_path=None) -> None:
+    def __init__(self, emb_type, rule_path='./Chroma/rule_db', emergency_path='./Chroma/memory_db') -> None:
         if emb_type == 'openai':
             self.embedding = OpenAIEmbeddings()
         elif emb_type == 'huggingface':
@@ -14,8 +14,6 @@ class DrivingMemory:
         else:
             self.embedding = FakeEmbeddings(size=4096)
 
-        rule_path = os.path.join(
-            './db', 'chroma_5_shot_20_mem/') if rule_path is None else rule_path
         self.rules_memory = Chroma(
             collection_name="example_collection",
             embedding_function=self.embedding,

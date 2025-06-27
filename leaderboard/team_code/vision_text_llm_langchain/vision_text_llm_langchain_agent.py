@@ -23,7 +23,7 @@ from transformers import Blip2Processor, Blip2ForConditionalGeneration
 from leaderboard.autoagents import autonomous_agent
 from team_code.planner import RoutePlanner, InstructionPlanner
 from team_code.pid_controller import PIDController
-from llm_response import LLM_Agent
+from .llm_response import LLM_Agent
 
 try:
     import pygame
@@ -183,8 +183,8 @@ class VisionTextLLMAgent(autonomous_agent.AutonomousAgent):
 
         #print(f'use {self.config.openai_chat_model} ...')
         #self.net = OpenAI(api_key=self.config.openai_key)
-        # load llm model
-        self.llm_agent = LLM_Agent(llm_type='deepseek', api_key='')
+        print("load LLM agent.")
+        self.llm_agent = LLM_Agent(config=self.config)
         self.prev_lidar = None
         self.prev_control = None
         self.curr_instruction = 'Drive safely.'
@@ -194,17 +194,8 @@ class VisionTextLLMAgent(autonomous_agent.AutonomousAgent):
         self.image_id = 0
         self.change_instruction = 0
 
-        # load blip2 model
-        print("load blip2 model...")
-        s1 = time.time()
-        self.cache_dir = "/home/ubuntu/FedDrive/src_data/models/blip2-opt-2.7B-cache"
-        self.blip2_processor = Blip2Processor.from_pretrained("Salesforce/blip2-opt-2.7b",
-                                                   revision="51572668da0eb669e01a189dc22abe6088589a24",
-                                                   cache_dir=self.cache_dir)
-        self.blip2_model = Blip2ForConditionalGeneration.from_pretrained("Salesforce/blip2-opt-2.7b",
-                                                              revision="51572668da0eb669e01a189dc22abe6088589a24",
-                                                              cache_dir=self.cache_dir).to(self.device)
-        print(f"The time to load blip2 model is {time.time()-s1}")
+        print("load scenario descriptor")
+        self.sce_processor, self.sce_descriptor = self.load_scenario_descriptor()
 
         # save the meta images
         self.save_path = None
@@ -217,12 +208,49 @@ class VisionTextLLMAgent(autonomous_agent.AutonomousAgent):
                     (now.month, now.day, now.hour, now.minute, now.second),
                 )
             )
-
             print("Data save path:", string)
-
             self.save_path = pathlib.Path(SAVE_PATH) / string
             self.save_path.mkdir(parents=True, exist_ok=False)
             (self.save_path / "meta").mkdir(parents=True, exist_ok=False)
+
+    def load_scenario_descriptor(self):
+        if self.config.scenario_descriptor == 'blip2':
+            print("load blip2 as a scenario descriptor from huggingface...")
+            s1 = time.time()
+            sce_processor = Blip2Processor.from_pretrained(
+                self.config.descriptor_name,
+                revision="51572668da0eb669e01a189dc22abe6088589a24",
+                cache_dir=self.config.cache_path)
+            sce_descriptor = Blip2ForConditionalGeneration.from_pretrained(
+                self.config.descriptor_name,
+                revision="51572668da0eb669e01a189dc22abe6088589a24",
+                cache_dir=self.config.cache_path).to(self.device)
+            print(f"The time to load blip2 model is {time.time() - s1}")
+        elif self.config.scenario_descriptor == 'ours':
+            # TODO
+            print("load our model as a scenario descriptor from local directory...")
+            s1 = time.time()
+            sce_processor = Blip2Processor.from_pretrained(
+                self.config.descriptor_name,
+                cache_dir=self.config.cache_path)
+            sce_descriptor = Blip2ForConditionalGeneration.from_pretrained(
+                self.config.descriptor_name,
+                cache_dir=self.config.cache_path).to(self.device)
+            print(f"The time to load flamingo model is {time.time() - s1}")
+        else:
+            print("no such scenario descriptor!!! load blip2 model as the scenario descriptor")
+            s1 = time.time()
+            sce_processor = Blip2Processor.from_pretrained(
+                self.config.descriptor_name,
+                revision="51572668da0eb669e01a189dc22abe6088589a24",
+                cache_dir=self.config.cache_path)
+            sce_descriptor = Blip2ForConditionalGeneration.from_pretrained(
+                self.config.descriptor_name,
+                revision="51572668da0eb669e01a189dc22abe6088589a24",
+                cache_dir=self.config.cache_path).to(self.device)
+            print(f"The time to load blip2 model is {time.time() - s1}")
+
+        return sce_processor, sce_descriptor
 
     def _init(self):
         # get the instruction and waypoints
@@ -487,30 +515,24 @@ class VisionTextLLMAgent(autonomous_agent.AutonomousAgent):
             for image_opcv in images_list:
                 image = Image.fromarray(image_opcv)
                 s2_time = time.time()
-                inputs = self.blip2_processor(images=image, return_tensors="pt").to(self.device, self.blip2_model.dtype)
-                generated_ids = self.blip2_model.generate(**inputs)
-                caption = self.blip2_processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+                inputs = self.sce_processor(images=image, return_tensors="pt").to(self.device, self.sce_descriptor.dtype)
+                generated_ids = self.sce_descriptor.generate(**inputs)
+                caption = self.sce_processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
                 print(f"the time to descript the figure is {time.time() - s2_time}, and the caption is {caption}")
                 image_descriptions.append(caption)
 
             # save the image with caption
             self.image_id += 1
-            save_path = "./carla_outputs/vision_text_llm_camera/image_caption" + str(self.change_instruction) + "_" + str(self.image_id)
+            save_path = self.config.image_path + str(self.change_instruction) + "_" + str(self.image_id)
             save_image_with_caption(images_list, image_descriptions, save_path)
 
             if self.curr_notice is '':
                 self.curr_notice = 'please notice the traffic lights. When the traffic light is red, please stop util the lights turn green.'
 
             # prompt setting
-            outputs = self.llm_agent.run(waypoint_number=5,
-                                         image_description_front=image_descriptions[0],
-                                         image_description_left=image_descriptions[1],
-                                         image_description_right=image_descriptions[2],
-                                         image_description_rear=image_descriptions[3],
-                                         instruction=self.instruction,
-                                         notice=self.curr_notice,
-                                         velocity=velocity,
-                                         target_point=input_data['target_point'],)
+            outputs = self.llm_agent.response(waypoint_number=5,
+                                              image_descriptions=image_descriptions,
+                                              drive_information=input_data,)
         waypoints = outputs['output_waypoints']
         end_prob1 = outputs['end_prob']
 

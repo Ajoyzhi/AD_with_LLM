@@ -21,12 +21,22 @@ class GlobalConfig:
     brake_ratio = 1.1  # ratio of speed to desired speed at which brake is triggered
     clip_delta = 0.35  # maximum change in speed input to logitudinal controller
 
-    agent_use_notice = False
+    agent_use_notice = True # False
     sample_rate = 2
 
-    # openai
-    openai_key = 'api'  # 'sk-xxxxxx'
-    openai_chat_model = 'gpt-4-1106-preview'
+    # LLM
+    llm_type = 'deepseek' # openai
+    llm_key = 'api'  # 'sk-xxxxxx'
+    llm_model = 'deepseek-chat' # gpt-4.0
+    # memory
+    rule_path = './Chroma/rule_db'
+    memory_path = './Chroma/memory_db'
+    # scenario_descriptor
+    scenario_descriptor = 'blip2' # blip2, ours
+    cache_path = '/home/ubuntu/FedDrive/src_data/models/blip2-opt-2.7B-cache'
+    descriptor_name = 'Salesforce/blip2-opt-2.7b'
+    # save
+    image_path = "./carla_outputs/vision_text_llm_camera/image_caption"
 
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
